@@ -1,0 +1,23 @@
+framework:
+    test: true
+    secret: '%env(APP_SECRET)%'
+    http_method_override: true
+    handle_all_throwables: true
+    php_errors:
+        log: true
+    session:
+        handler_id: null
+        cookie_secure: auto
+        cookie_samesite: lax
+        storage_factory_id: session.storage.factory.mock_file
+    validation:
+        email_validation_mode: html5
+    serializer:
+        enabled: true
+        enable_attributes: true
+    default_locale: en
+    trusted_hosts: ['^.*$']
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-port', 'x-forwarded-proto']
+    trusted_proxies: ['127.0.0.1', 'REMOTE_ADDR']
+    profiler:
+        collect: false 

@@ -1,0 +1,32 @@
+# Docker environment files
+.env
+.env.docker
+.env.docker.prod
+.env.docker.*.local
+
+# SSL and certificates
+/certbot/
+
+# Docker volume data
+/docker/mysql/data/
+
+# Logs
+docker-compose.log
+*.log
+
+# Production build artifacts
+/build/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Generated configuration files
+docker-compose.override.yml
+
+# Local development overrides
+docker-compose.override.yml 

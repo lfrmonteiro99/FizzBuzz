@@ -1,0 +1,58 @@
+# Production PHP Dockerfile with multi-stage build
+# Stage 1: Build the application
+FROM composer:2 as composer
+
+WORKDIR /app
+
+# Copy only the files needed for composer install
+COPY app/composer.json app/composer.lock* ./
+
+# Install dependencies with no dev dependencies and optimize autoloader
+RUN composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader
+
+# Stage 2: Create the production image
+FROM php:8.2-fpm-alpine as app
+
+# Install production dependencies and clean up in one layer
+RUN apk add --no-cache \
+    icu-libs \
+    libpq \
+    libzip \
+    && apk add --no-cache --virtual .build-deps \
+    $PHPIZE_DEPS \
+    icu-dev \
+    libzip-dev \
+    postgresql-dev \
+    && docker-php-ext-install -j$(nproc) \
+    intl \
+    zip \
+    pdo \
+    pdo_mysql \
+    opcache \
+    && pecl install apcu \
+    && docker-php-ext-enable apcu \
+    && apk del .build-deps
+
+# Copy PHP configuration
+COPY docker/php/prod/php.ini /usr/local/etc/php/php.ini
+COPY docker/php/prod/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY docker/php/prod/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
+
+# Set up application directory with correct permissions
+WORKDIR /var/www/app
+RUN mkdir -p /var/www/app/var/cache /var/www/app/var/log \
+    && chown -R www-data:www-data /var/www/app
+
+# Copy the application
+COPY app /var/www/app
+COPY --from=composer /app/vendor /var/www/app/vendor
+
+# Copy the Docker entrypoint
+COPY docker/php/docker-entrypoint.prod.sh /usr/local/bin/docker-entrypoint
+RUN chmod +x /usr/local/bin/docker-entrypoint
+
+# Switch to non-root user for security
+USER www-data
+
+ENTRYPOINT ["docker-entrypoint"]
+CMD ["php-fpm"] 

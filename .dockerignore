@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Docker
+.dockerignore
+docker-compose*.yml
+Dockerfile*
+/docker/*/data
+
+# Environment variables
+.env*
+!app/.env
+
+# SSL certificates
+/certbot/
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+
+# Dependency directories
+app/vendor/
+app/node_modules/
+
+# Build directories
+app/var/cache/*
+app/var/log/*
+!app/var/cache/.gitkeep
+!app/var/log/.gitkeep
+
+# Editor directories and files
+.idea
+.vscode
+*.swp
+*.swo
+*~
+.DS_Store 
