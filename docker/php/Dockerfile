@@ -1,48 +1,66 @@
 FROM php:8.2-fpm
 
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git zip unzip curl libpq-dev libonig-dev libxml2-dev libzip-dev \
-    netcat-openbsd \
-    && docker-php-ext-install pdo pdo_mysql zip
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    default-mysql-client \
+    libzip-dev \
+    libssl-dev \
+    pkg-config
 
-# Install Xdebug for code coverage
-RUN pecl install xdebug \
-    && docker-php-ext-enable xdebug
+# Clear cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Configure Xdebug for code coverage
-RUN echo "xdebug.mode=coverage" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
-    && echo "xdebug.client_host=host.docker.internal" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
-    && echo "xdebug.start_with_request=yes" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+# Install PHP extensions
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
-# Composer
+# Install Redis extension
+RUN pecl install -o -f redis \
+    && rm -rf /tmp/pear \
+    && docker-php-ext-enable redis
+
+# Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set up directory for app
+# Set working directory
 WORKDIR /var/www/app
 
-# Create cache, log, and test directories with proper permissions
-RUN mkdir -p /var/www/app/var/cache /var/www/app/var/log \
-    && chown -R www-data:www-data /var/www/app \
-    && chmod -R 777 /var/www/app/var
-
 # Copy composer files first to leverage Docker cache
-COPY app/composer.json app/composer.lock* /var/www/app/
-
-# Set proper permissions before running composer
-RUN chown -R www-data:www-data /var/www/app
-
-# Switch to www-data user for composer operations
-USER www-data
+COPY app/composer.json /var/www/app/
 
 # Install dependencies
-RUN composer install --prefer-dist --no-scripts --no-progress --no-interaction
+RUN if [ -f "composer.lock" ]; then \
+        composer install --no-interaction --no-dev --optimize-autoloader; \
+    else \
+        composer update --no-interaction --no-dev --optimize-autoloader; \
+    fi
 
-# Switch back to root for entrypoint
-USER root
+# Copy the rest of the application
+COPY app/ /var/www/app/
 
-# Set up custom entrypoint script
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint
-RUN chmod +x /usr/local/bin/docker-entrypoint
+# Set proper permissions for Symfony
+RUN chown -R www-data:www-data /var/www/app/var
+RUN chown -R www-data:www-data /var/www/app/public
 
-ENTRYPOINT ["docker-entrypoint"]
-CMD ["php-fpm"]
+# Configure PHP-FPM
+RUN echo "pm.max_children = 50" >> /usr/local/etc/php-fpm.d/www.conf \
+    && echo "pm.start_servers = 5" >> /usr/local/etc/php-fpm.d/www.conf \
+    && echo "pm.min_spare_servers = 5" >> /usr/local/etc/php-fpm.d/www.conf \
+    && echo "pm.max_spare_servers = 35" >> /usr/local/etc/php-fpm.d/www.conf \
+    && echo "pm.max_requests = 500" >> /usr/local/etc/php-fpm.d/www.conf \
+    && echo "request_terminate_timeout = 300" >> /usr/local/etc/php-fpm.d/www.conf \
+    && echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && echo "max_input_time = 300" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+
+# Copy entrypoint script
+COPY docker/php/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]

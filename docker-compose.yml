@@ -1,13 +1,15 @@
 # Docker automatically loads variables from .env file in the same directory
 
+version: '3.8'
+
 services:
   nginx:
-    image: nginx:stable
+    image: nginx:alpine
     ports:
-      - "${APP_PORT:-8080}:${NGINX_PORT:-80}"
+      - "8080:80"
     volumes:
       - ./app:/var/www/app
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
     depends_on:
       - php
     networks:
@@ -20,7 +22,8 @@ services:
 
   php:
     build:
-      context: ./docker/php
+      context: .
+      dockerfile: docker/php/Dockerfile
     volumes:
       - ./app:/var/www/app
     working_dir: /var/www/app
@@ -32,6 +35,18 @@ services:
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - LOG_LEVEL=${LOG_LEVEL:-debug}
       - MONOLOG_LEVEL=${MONOLOG_LEVEL:-debug}
+      - DATABASE_URL=mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}?serverVersion=8.0.33&charset=utf8mb4
+      - MESSENGER_TRANSPORT_DSN=redis://redis:6379/messages
+      # PHP Configuration
+      - PHP_FPM_PM=dynamic
+      - PHP_FPM_PM_MAX_CHILDREN=50
+      - PHP_FPM_PM_START_SERVERS=5
+      - PHP_FPM_PM_MIN_SPARE_SERVERS=5
+      - PHP_FPM_PM_MAX_SPARE_SERVERS=35
+      - PHP_FPM_PM_MAX_REQUESTS=500
+      - PHP_MEMORY_LIMIT=256M
+      - PHP_MAX_EXECUTION_TIME=300
+      - PHP_MAX_INPUT_TIME=300
     networks:
       - symfony
     logging:
@@ -39,6 +54,22 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    depends_on:
+      - mysql
+      - redis
+    # Override PHP-FPM configuration
+    command: >
+      sh -c "docker-php-ext-enable opcache
+      && echo 'pm = dynamic' >> /usr/local/etc/php-fpm.d/www.conf
+      && echo 'pm.max_children = 50' >> /usr/local/etc/php-fpm.d/www.conf
+      && echo 'pm.start_servers = 5' >> /usr/local/etc/php-fpm.d/www.conf
+      && echo 'pm.min_spare_servers = 5' >> /usr/local/etc/php-fpm.d/www.conf
+      && echo 'pm.max_spare_servers = 35' >> /usr/local/etc/php-fpm.d/www.conf
+      && echo 'pm.max_requests = 500' >> /usr/local/etc/php-fpm.d/www.conf
+      && echo 'memory_limit = 256M' >> /usr/local/etc/php/conf.d/custom.ini
+      && echo 'max_execution_time = 300' >> /usr/local/etc/php/conf.d/custom.ini
+      && echo 'max_input_time = 300' >> /usr/local/etc/php/conf.d/custom.ini
+      && php-fpm"
 
   mysql:
     image: mysql:8.0
@@ -59,8 +90,49 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    networks:
+      - symfony
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  messenger-worker:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    volumes:
+      - ./app:/var/www/app
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      - APP_ENV=dev
+      - DATABASE_URL=mysql://root:root@mysql:3306/fizzbuzz?serverVersion=8.0
+      - MESSENGER_TRANSPORT_DSN=redis://redis:6379/messages
+      # PHP Configuration for worker
+      - PHP_MEMORY_LIMIT=512M
+      - PHP_MAX_EXECUTION_TIME=0
+    command: php bin/console messenger:consume async --time-limit=3600
+    restart: unless-stopped
+
 volumes:
   mysql_data:
+  redis_data:
 
 networks:
   symfony:
+    driver: bridge

@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\FizzBuzzRequest;
 use App\Interface\FizzBuzzRequestRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -12,9 +13,12 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class FizzBuzzRequestRepository extends ServiceEntityRepository implements FizzBuzzRequestRepositoryInterface
 {
+    private EntityManagerInterface $em;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, FizzBuzzRequest::class);
+        $this->em = $this->getEntityManager();
     }
 
     /**
@@ -44,49 +48,38 @@ class FizzBuzzRequestRepository extends ServiceEntityRepository implements FizzB
     public function findOrCreateRequest(int $limit, int $int1, int $int2, string $str1, string $str2): FizzBuzzRequest
     {
         try {
-            // Begin transaction for data consistency
-            $this->getEntityManager()->beginTransaction();
-            
-            // Use DQL with parameter binding to avoid SQL injection and handle reserved words
-            $dql = "SELECT r FROM App\Entity\FizzBuzzRequest r 
-                    WHERE r.limit = :limit 
-                    AND r.int1 = :int1 
-                    AND r.int2 = :int2 
-                    AND r.str1 = :str1 
-                    AND r.str2 = :str2";
-            
-            $query = $this->getEntityManager()->createQuery($dql);
-            $query->setParameters([
+            $request = $this->findOneBy([
                 'limit' => $limit,
                 'int1' => $int1,
                 'int2' => $int2,
                 'str1' => $str1,
                 'str2' => $str2,
             ]);
-            
-            $existingRequest = $query->getOneOrNullResult();
-            
-            if ($existingRequest) {
-                // If found, increment the hit counter
-                $existingRequest->incrementHits();
-                $this->getEntityManager()->flush();
-                $this->getEntityManager()->commit();
-                return $existingRequest;
+
+            if (!$request) {
+                $request = new FizzBuzzRequest($limit, $int1, $int2, $str1, $str2);
+                $this->em->persist($request);
+                $this->em->flush();
             }
-            
-            // If not found, create a new request
-            $request = new FizzBuzzRequest($limit, $int1, $int2, $str1, $str2);
-            $this->getEntityManager()->persist($request);
-            $this->getEntityManager()->flush();
-            $this->getEntityManager()->commit();
-            
+
             return $request;
         } catch (\Exception $e) {
-            // Rollback the transaction in case of error
-            if ($this->getEntityManager()->getConnection()->isTransactionActive()) {
-                $this->getEntityManager()->rollback();
-            }
-            throw $e;
+            throw new \Doctrine\ORM\ORMException('Error finding or creating FizzBuzzRequest: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Save a FizzBuzzRequest entity
+     *
+     * @param FizzBuzzRequest $request The request to save
+     * @param bool $flush Whether to flush the entity manager
+     * @return void
+     */
+    public function save(FizzBuzzRequest $request, bool $flush = false): void
+    {
+        $this->em->persist($request);
+        if ($flush) {
+            $this->em->flush();
         }
     }
 } 

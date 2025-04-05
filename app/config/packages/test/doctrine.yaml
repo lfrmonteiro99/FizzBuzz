@@ -2,4 +2,20 @@ doctrine:
     dbal:
         driver: pdo_sqlite
         path: '%kernel.project_dir%/var/test.db'
-        url: null 
+        url: null
+        server_version: '3.0'
+        charset: UTF8
+        default_table_options:
+            charset: utf8mb4
+            collate: utf8mb4_unicode_ci
+    orm:
+        auto_generate_proxy_classes: true
+        naming_strategy: doctrine.orm.naming_strategy.underscore
+        auto_mapping: true
+        mappings:
+            App:
+                is_bundle: false
+                type: attribute
+                dir: '%kernel.project_dir%/src/Entity'
+                prefix: 'App\Entity'
+                alias: App 

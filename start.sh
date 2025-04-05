@@ -11,6 +11,10 @@ fi
 echo "Copying environment variables from .env.docker to .env..."
 cp .env.docker .env
 
+# Rebuild containers
+echo "Rebuilding containers..."
+docker compose build
+
 # Run Docker Compose
 echo "Starting Docker containers..."
 docker-compose up -d

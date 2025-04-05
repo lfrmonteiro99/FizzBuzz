@@ -1,61 +1,134 @@
-# Symfony Challenge
+# FizzBuzz API
+
+A Symfony-based REST API that implements the FizzBuzz game with additional features like request tracking, statistics, and event handling.
+
+## Features
+
+- FizzBuzz sequence generation with customizable parameters
+- Request tracking and statistics
+- Event-driven architecture
+- Asynchronous event processing
+- Comprehensive logging
+- Input validation
+- Docker-based development environment
+- Redis caching
+- MySQL database for request storage
 
 ## Prerequisites
 
 - Docker and Docker Compose
 - Git
 
-## Installation for Development
+## Setup
 
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/symfony_challenge.git
-   cd symfony_challenge
+   git clone <repository-url>
+   cd fizzbuzz
    ```
 
-2. Set up Docker environment variables:
+2. Create environment files:
 
    ```bash
    cp .env.docker.example .env.docker
    ```
 
-3. Modify the environment variables in `.env.docker` if needed:
-
-   ```
-   # MySQL Configuration
-   MYSQL_ROOT_PASSWORD=your_root_password
-   MYSQL_DATABASE=your_database_name
-   MYSQL_USER=your_username
-   MYSQL_PASSWORD=your_password
-
-   # Application Configuration
-   APP_ENV=dev
-   APP_PORT=8080
-   NGINX_PORT=80
-   APP_SECRET=your_app_secret # Optional - will be auto-generated if not provided
-   ```
-
-4. Start the Docker containers:
+3. Start the containers:
 
    ```bash
-   # Option 1: Using the convenience script (recommended)
    ./start.sh
-
-   # Option 2: Manually
-   cp .env.docker .env
-   docker-compose up -d
    ```
 
-> **Note:** The Docker setup automatically:
->
-> - Installs Composer dependencies
-> - Creates `.env.local` and `.env.test.local` files with the correct configuration
-> - Sets up proper permissions for cache and log directories
-> - Generates a secure APP_SECRET if not provided
-> - Creates database schema for both development and test environments
-> - Optimizes the autoloader for production performance
-> - Configures comprehensive logging with rotation capabilities
+This will:
+- Build and start the Docker containers
+- Install Composer dependencies
+- Create the database
+- Run database migrations
+- Clear the cache
+
+## API Endpoints
+
+### Home
+- **GET** `/`
+- Returns a simple status message
+- Response: `{"status": "API is working"}`
+
+### FizzBuzz
+- **GET** `/fizzbuzz`
+- Generates a FizzBuzz sequence based on provided parameters
+- Query Parameters:
+  - `int1`: First divisor (positive integer)
+  - `int2`: Second divisor (positive integer)
+  - `limit`: Upper limit of the sequence (positive integer)
+  - `str1`: String to use for multiples of int1 (non-empty string)
+  - `str2`: String to use for multiples of int2 (non-empty string)
+- Response: JSON object containing the sequence and request parameters
+
+Example:
+```bash
+curl "http://localhost:8080/fizzbuzz?int1=2&int2=7&limit=100&str1=ola&str2=adeus"
+```
+
+### Statistics
+- **GET** `/statistics`
+- Returns the most frequent FizzBuzz request
+- Response: JSON object containing the most frequent request parameters and hit count
+
+## Development
+
+### Project Structure
+```
+app/
+├── src/
+│   ├── Controller/     # API endpoints
+│   ├── Entity/         # Database entities
+│   ├── Event/          # Event classes
+│   ├── Interface/      # Service interfaces
+│   ├── Message/        # Async message handlers
+│   ├── Repository/     # Database repositories
+│   ├── Service/        # Business logic
+│   └── Dto/            # Data Transfer Objects
+├── config/             # Configuration files
+├── migrations/         # Database migrations
+└── tests/             # Test files
+```
+
+### Services
+- `FizzBuzzService`: Core FizzBuzz logic
+- `FizzBuzzStatisticsService`: Request tracking and statistics
+- `FizzBuzzRequestRepository`: Database operations
+- `FizzBuzzEventHandler`: Event handling
+
+### Events
+- `FizzBuzzEvent::GENERATION_COMPLETED`: Fired when sequence is generated
+- `FizzBuzzEvent::INVALID_INPUT`: Fired when invalid input is detected
+- `FizzBuzzEvent::ZERO_DIVISORS`: Fired when zero divisors are detected
+
+### Logging
+Logs are stored in:
+- `/var/log/php-fpm.log` (PHP logs)
+- `/var/log/nginx/access.log` (Nginx access logs)
+- `/var/log/nginx/error.log` (Nginx error logs)
+
+## Testing
+
+Run the test suite:
+```bash
+docker-compose exec php bin/phpunit
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Production Deployment
 
