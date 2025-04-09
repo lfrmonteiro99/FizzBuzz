@@ -1,0 +1,19 @@
+services:
+    # Structured logger - defined explicitly without autowiring
+    App\Service\StructuredLogger:
+        autowire: false
+        autoconfigure: false
+        public: true
+        arguments:
+            $name: 'app'
+            $logPath: '%kernel.logs_dir%/request.log'
+            $messageBus: '@messenger.default_bus'
+            $handlers: []
+            $processors: []
+        tags:
+            - { name: 'monolog.logger', channel: 'request' }
+
+    # Interface binding for StructuredLogger
+    App\Interface\RequestLoggerInterface:
+        alias: App\Service\StructuredLogger
+        public: true 

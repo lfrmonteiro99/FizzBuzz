@@ -2,153 +2,103 @@
 
 namespace App\Service;
 
-use App\Entity\FizzBuzzRequest;
-use App\Event\FizzBuzzEvent;
+use App\Interface\FizzBuzzEventServiceInterface;
+use App\Interface\FizzBuzzRequestInterface;
+use App\Interface\FizzBuzzSequenceServiceInterface;
 use App\Interface\FizzBuzzServiceInterface;
-use App\Repository\FizzBuzzRequestRepository;
+use App\Interface\SequenceCacheInterface;
+use App\Message\CreateFizzBuzzRequest;
+use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 class FizzBuzzService implements FizzBuzzServiceInterface
 {
     public function __construct(
-        private readonly FizzBuzzRequestRepository $repository,
-        #[Autowire(service: 'monolog.logger')] private readonly LoggerInterface $logger,
-        private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly MessageBusInterface $messageBus
+        private readonly FizzBuzzSequenceServiceInterface $sequenceService,
+        private readonly FizzBuzzEventServiceInterface $eventService,
+        private readonly SequenceCacheInterface $cache,
+        private readonly MessageBusInterface $messageBus,
+        private readonly LoggerInterface $logger,
+        private readonly Connection $connection
     ) {
-        $this->logger->info('FizzBuzzService constructed');
     }
 
-    /**
-     * Generate a FizzBuzz sequence based on the given request.
-     *
-     * @param FizzBuzzRequest $request The request containing FizzBuzz parameters
-     * @return array<string|int> The generated FizzBuzz sequence
-     */
-    public function generate(FizzBuzzRequest $request): array
+    public function generateSequence(FizzBuzzRequestInterface $request): array
     {
-        $this->logger->info('Starting FizzBuzz generation', [
-            'limit' => $request->getLimit(),
-            'int1' => $request->getInt1(),
-            'int2' => $request->getInt2(),
-            'str1' => $request->getStr1(),
-            'str2' => $request->getStr2(),
-        ]);
-
-        try {
-            // Find or create FizzBuzzRequest
-            $fizzBuzzRequest = $this->repository->findOneBy([
+        $this->logger->info('Generating sequence', [
+            'request' => [
+                'start' => $request->getStart(),
                 'limit' => $request->getLimit(),
-                'int1' => $request->getInt1(),
-                'int2' => $request->getInt2(),
+                'divisor1' => $request->getDivisor1(),
+                'divisor2' => $request->getDivisor2(),
                 'str1' => $request->getStr1(),
                 'str2' => $request->getStr2(),
-            ]);
+            ]
+        ]);
 
-            $this->logger->info('FizzBuzzRequest lookup result', ['found' => $fizzBuzzRequest !== null]);
+        // Try to get from cache first
+        $cachedSequence = $this->cache->get($request);
+        if ($cachedSequence !== null) {
+            $this->logger->info('Found sequence in cache');
+            
+            // Save record directly to database
+            //$this->saveRequestToDatabase($request);
+            
+            // Also dispatch message as a backup
+            $this->dispatchMessage($request);
+            
+            return $cachedSequence;
+        }
 
-            if (!$fizzBuzzRequest) {
-                $this->logger->info('Creating new FizzBuzzRequest');
-                $fizzBuzzRequest = new FizzBuzzRequest(
-                    $request->getLimit(),
-                    $request->getInt1(),
-                    $request->getInt2(),
-                    $request->getStr1(),
-                    $request->getStr2()
-                );
-            }
-
-            // Increment hits
-            $fizzBuzzRequest->incrementHits();
-            $this->repository->save($fizzBuzzRequest, true);
-
-            $this->logger->info('FizzBuzzRequest saved', ['id' => $fizzBuzzRequest->getId()]);
-
+        try {
+            $this->logger->info('Generating new sequence');
             // Generate sequence
-            $result = [];
+            $sequence = $this->sequenceService->generateSequence($request);
             
-            // Return empty array for zero or negative limits
-            if ($request->getLimit() <= 0) {
-                $this->logger->warning('Invalid input detected: limit <= 0');
-                $this->eventDispatcher->dispatch(
-                    new FizzBuzzEvent($request, [], FizzBuzzEvent::INVALID_INPUT)
-                );
-                return [];
-            }
-
-            for ($i = 1; $i <= $request->getLimit(); $i++) {
-                $output = '';
-                
-                // Handle zero divisors
-                if ($request->getInt1() === 0 && $request->getInt2() === 0) {
-                    $this->logger->warning('Zero divisors detected', ['number' => $i]);
-                    $this->eventDispatcher->dispatch(
-                        new FizzBuzzEvent($request, ['number' => $i], FizzBuzzEvent::ZERO_DIVISORS)
-                    );
-                    $result[] = (string)$i;
-                    continue;
-                }
-
-                // Handle divisibility
-                $isDivisibleByInt1 = ($request->getInt1() !== 0) && ($i % $request->getInt1() === 0);
-                $isDivisibleByInt2 = ($request->getInt2() !== 0) && ($i % $request->getInt2() === 0);
-                
-                if ($isDivisibleByInt1) {
-                    $output .= $request->getStr1();
-                }
-                
-                if ($isDivisibleByInt2) {
-                    $output .= $request->getStr2();
-                }
-                
-                // Handle empty strings test case specifically
-                if ($request->getStr1() === '' && $request->getStr2() === '') {
-                    if (($isDivisibleByInt1 || $isDivisibleByInt2) && $i % 2 === 0) {
-                        $result[] = '';
-                    } else {
-                        $result[] = (string)$i;
-                    }
-                } else {
-                    $result[] = $output === '' ? (string)$i : $output;
-                }
-            }
-
-            $this->logger->info('FizzBuzz sequence generated', ['count' => count($result)]);
-
-            // Dispatch event
-            $event = new FizzBuzzEvent(
-                $request,
-                ['result_count' => count($result)],
-                FizzBuzzEvent::GENERATION_COMPLETED
-            );
+            $this->logger->info('Caching sequence');
+            // Cache the successful sequence
+            $this->cache->set($request, $sequence);
             
-            $this->logger->info('Dispatching FizzBuzzEvent', ['event' => $event->getEventName()]);
+            $this->logger->info('Dispatching event');
+            // Dispatch event for the successful sequence
+            $this->eventService->dispatchEvent($request, $sequence);
             
-            $this->eventDispatcher->dispatch($event);
-
-            // Dispatch async event for generation completion
-            $this->messageBus->dispatch(
-                new FizzBuzzEvent(
-                    $request,
-                    [
-                        'result_count' => count($result),
-                        'first_item' => $result[0] ?? null,
-                        'last_item' => $result[count($result) - 1] ?? null
-                    ],
-                    FizzBuzzEvent::GENERATION_COMPLETED
-                )
-            );
-
-            return $result;
+            $this->dispatchMessage($request);
+            
+            return $sequence;
         } catch (\Exception $e) {
-            $this->logger->error('Error in FizzBuzzService', [
-                'message' => $e->getMessage(),
+            $this->logger->error('Error generating sequence', [
+                'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            // Log the error but don't create a database record for failed requests
+            // This ensures our database only contains records of successful requests
             throw $e;
+        }
+    }
+    
+    /**
+     * Dispatch message for async processing.
+     */
+    private function dispatchMessage(FizzBuzzRequestInterface $request): void
+    {
+        try {
+            $message = new CreateFizzBuzzRequest(
+                (int)$request->getLimit(),
+                (int)$request->getDivisor1(),
+                (int)$request->getDivisor2(),
+                (string)$request->getStr1(),
+                (string)$request->getStr2(),
+                (int)$request->getStart()
+            );
+            $this->messageBus->dispatch($message);
+            $this->logger->info('Message dispatched for async processing');
+        } catch (\Throwable $e) {
+            $this->logger->error('Error dispatching message', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 }

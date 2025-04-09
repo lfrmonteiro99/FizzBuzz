@@ -12,8 +12,8 @@ class FizzBuzzRequestTest extends TestCase
         $request = new FizzBuzzRequest(15, 3, 5, 'Fizz', 'Buzz');
         
         $this->assertEquals(15, $request->getLimit());
-        $this->assertEquals(3, $request->getInt1());
-        $this->assertEquals(5, $request->getInt2());
+        $this->assertEquals(3, $request->getDivisor1());
+        $this->assertEquals(5, $request->getDivisor2());
         $this->assertEquals('Fizz', $request->getStr1());
         $this->assertEquals('Buzz', $request->getStr2());
         $this->assertEquals(1, $request->getHits()); // Initial hits should be 1
@@ -25,8 +25,8 @@ class FizzBuzzRequestTest extends TestCase
     {
         $data = [
             'limit' => 15,
-            'int1' => 3,
-            'int2' => 5,
+            'divisor1' => 3,
+            'divisor2' => 5,
             'str1' => 'Fizz',
             'str2' => 'Buzz'
         ];
@@ -34,8 +34,8 @@ class FizzBuzzRequestTest extends TestCase
         $request = FizzBuzzRequest::fromArray($data);
         
         $this->assertEquals(15, $request->getLimit());
-        $this->assertEquals(3, $request->getInt1());
-        $this->assertEquals(5, $request->getInt2());
+        $this->assertEquals(3, $request->getDivisor1());
+        $this->assertEquals(5, $request->getDivisor2());
         $this->assertEquals('Fizz', $request->getStr1());
         $this->assertEquals('Buzz', $request->getStr2());
     }
@@ -47,8 +47,8 @@ class FizzBuzzRequestTest extends TestCase
         $request = FizzBuzzRequest::fromArray($data);
         
         $this->assertEquals(0, $request->getLimit());
-        $this->assertEquals(0, $request->getInt1());
-        $this->assertEquals(0, $request->getInt2());
+        $this->assertEquals(0, $request->getDivisor1());
+        $this->assertEquals(0, $request->getDivisor2());
         $this->assertEquals('', $request->getStr1());
         $this->assertEquals('', $request->getStr2());
     }
@@ -75,8 +75,8 @@ class FizzBuzzRequestTest extends TestCase
         // Test all getters
         $this->assertNull($request->getId()); // ID should be null for a new entity
         $this->assertEquals(15, $request->getLimit());
-        $this->assertEquals(3, $request->getInt1());
-        $this->assertEquals(5, $request->getInt2());
+        $this->assertEquals(3, $request->getDivisor1());
+        $this->assertEquals(5, $request->getDivisor2());
         $this->assertEquals('Fizz', $request->getStr1());
         $this->assertEquals('Buzz', $request->getStr2());
         $this->assertEquals(1, $request->getHits());

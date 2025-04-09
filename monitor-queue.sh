@@ -1,19 +1,29 @@
 #!/bin/bash
 
-echo "Monitoring Redis queue for new messages..."
+echo "Monitoring Redis stream for new messages..."
 echo "Press Ctrl+C to stop"
 
+# Get the last message ID
+LAST_ID="0-0"
+
 while true; do
-    # Get the number of messages in the queue
-    count=$(docker-compose exec redis redis-cli LLEN messages)
+    # Get the latest message ID
+    LATEST_ID=$(docker-compose exec redis redis-cli XREVRANGE messages + - COUNT 1 | grep -o '[0-9]*-[0-9]*' | head -n 1)
     
-    if [ "$count" -gt "0" ]; then
-        echo "New message(s) detected at $(date)"
-        echo "Message content:"
-        docker-compose exec redis redis-cli LINDEX messages 0
-        echo "----------------------------------------"
+    if [ ! -z "$LATEST_ID" ] && [ "$LATEST_ID" != "$LAST_ID" ]; then
+        # Read the message
+        MESSAGE=$(docker-compose exec redis redis-cli XRANGE messages $LAST_ID $LATEST_ID)
+        
+        if [ ! -z "$MESSAGE" ]; then
+            echo "New message detected at $(date)"
+            echo "$MESSAGE" | jq '.' 2>/dev/null || echo "$MESSAGE"
+            echo "----------------------------------------"
+            
+            # Update the last message ID
+            LAST_ID=$LATEST_ID
+        fi
     fi
     
-    # Wait for 1 second before checking again
+    # Sleep for 1 second before checking again
     sleep 1
 done 

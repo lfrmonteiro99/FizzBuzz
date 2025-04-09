@@ -1,16 +1,44 @@
 # see https://symfony.com/doc/current/reference/configuration/framework.html
 framework:
     secret: '%env(APP_SECRET)%'
-    profiler: { only_exceptions: false }
-    router:
-        utf8: true
+    #csrf_protection: true
+    http_method_override: false
+
+    # Enables session support. Note that the session will ONLY be started if you read or write from it.
+    # Remove or comment this section to explicitly disable session support.
     session:
         handler_id: null
         cookie_secure: auto
         cookie_samesite: lax
         storage_factory_id: session.storage.factory.native
+
+    #esi: true
+    #fragments: true
     php_errors:
         log: true
+    profiler:
+        enabled: false
+        collect: false
+
+    cache:
+        # Unique name of your app: used to compute stable namespaces for cache keys.
+        prefix_seed: app/symfony
+        
+        # The "app" cache stores to the filesystem by default.
+        # The data in this cache should persist between deploys.
+        # Other options include:
+        # apcu, memcached, redis
+        app: cache.adapter.redis
+        default_redis_provider: '%env(REDIS_URL)%'
+        
+        # Redis specific pools
+        pools:
+            doctrine.result_cache_pool:
+                adapter: cache.adapter.redis
+                provider: '%env(REDIS_URL)%'
+            doctrine.system_cache_pool:
+                adapter: cache.adapter.redis
+                provider: '%env(REDIS_URL)%'
 
 when@dev:
     framework:
@@ -30,3 +58,13 @@ when@test:
         test: true
         session:
             storage_factory_id: session.storage.factory.mock_file
+        cache:
+            app: cache.adapter.redis
+            default_redis_provider: '%env(REDIS_URL)%'
+            pools:
+                doctrine.result_cache_pool:
+                    adapter: cache.adapter.redis
+                    provider: '%env(REDIS_URL)%'
+                doctrine.system_cache_pool:
+                    adapter: cache.adapter.redis
+                    provider: '%env(REDIS_URL)%'

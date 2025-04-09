@@ -1,0 +1,27 @@
+nelmio_api_doc:
+    documentation:
+        info:
+            title: FizzBuzz API
+            description: |
+                A REST API that implements the FizzBuzz game with additional features like request tracking, statistics, and event handling.
+                
+                ## Features
+                - FizzBuzz sequence generation with customizable parameters
+                - Request tracking and statistics
+                - Event-driven architecture
+                - Asynchronous event processing
+                - Comprehensive logging
+            version: 1.0.0
+        servers:
+            - url: http://localhost:8080
+              description: Local development server
+            - url: https://api.example.com
+              description: Production server
+    areas:
+        default:
+            path_patterns:
+                - ^/fizzbuzz
+                - ^/statistics
+                - ^/health
+    models:
+        use_jms: false

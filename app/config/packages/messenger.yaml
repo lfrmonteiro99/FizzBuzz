@@ -1,12 +1,28 @@
 framework:
     messenger:
         # Uncomment this (and the failed transport below) to send failed messages to this transport for later handling.
-        # failure_transport: failed
+        failure_transport: failed
 
         transports:
             # https://symfony.com/doc/current/messenger.html#transport-configuration
-            async: '%env(MESSENGER_TRANSPORT_DSN)%'
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    stream: 'messages'
+                    group: 'fizzbuzz'
+                    consumer: 'consumer-1'
+                    auto_setup: false
+                    delete_after_ack: true
+            failed:
+                dsn: '%env(MESSENGER_FAILURE_DSN)%'
+                options:
+                    stream: 'failed'
+                    group: 'fizzbuzz'
+                    consumer: 'consumer-1'
+                    auto_setup: false
+                    delete_after_ack: true
 
         routing:
             # Route your messages to the transports
-            'App\Event\FizzBuzzEvent': async 
+            'App\Message\LogMessage': async
+            'App\Message\CreateFizzBuzzRequest': async 

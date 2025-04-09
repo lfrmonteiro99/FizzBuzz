@@ -4,12 +4,8 @@ controllers:
         namespace: App\Controller
     type: attribute
 
-fizzbuzz:
+
+app_fizzbuzz:
     path: /fizzbuzz
     controller: App\Controller\FizzBuzzController::getFizzBuzz
     methods: GET
-
-fizzbuzz_statistics:
-    path: /fizzbuzz/statistics
-    controller: App\Controller\FizzBuzzStatisticsController::getMostFrequentRequest
-    methods: [GET]

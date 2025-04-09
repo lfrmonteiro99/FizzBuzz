@@ -30,8 +30,8 @@ class FizzBuzzControllerTest extends WebTestCase
     public function testGetFizzBuzzWithValidParameters(): void
     {
         $request = new Request([
-            'int1' => '3',
-            'int2' => '5',
+            'divisor1' => '3',
+            'divisor2' => '5',
             'limit' => '15',
             'str1' => 'Fizz',
             'str2' => 'Buzz'
@@ -66,8 +66,8 @@ class FizzBuzzControllerTest extends WebTestCase
     public function testGetFizzBuzzWithInvalidParameters(): void
     {
         $request = new Request([
-            'int1' => '0',
-            'int2' => '5',
+            'divisor1' => '0',
+            'divisor2' => '5',
             'limit' => '15',
             'str1' => 'Fizz',
             'str2' => 'Buzz'
@@ -79,7 +79,7 @@ class FizzBuzzControllerTest extends WebTestCase
                 null,
                 [],
                 null,
-                'int1',
+                'divisor1',
                 '0'
             )
         ]);
@@ -101,7 +101,7 @@ class FizzBuzzControllerTest extends WebTestCase
 
         $this->assertEquals(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
         $this->assertEquals(
-            json_encode(['errors' => ['int1: This value should be positive.']]),
+            json_encode(['errors' => ['divisor1: This value should be positive.']]),
             $response->getContent()
         );
     }

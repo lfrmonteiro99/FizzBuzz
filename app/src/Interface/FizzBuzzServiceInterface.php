@@ -2,7 +2,7 @@
 
 namespace App\Interface;
 
-use App\Entity\FizzBuzzRequest;
+use App\Interface\FizzBuzzRequestInterface;
 
 /**
  * Interface for FizzBuzz service
@@ -10,9 +10,10 @@ use App\Entity\FizzBuzzRequest;
 interface FizzBuzzServiceInterface
 {
     /**
-     * Generate a FizzBuzz sequence based on the given parameters
-     * @param FizzBuzzRequest $request The request containing FizzBuzz parameters
+     * Generate a FizzBuzz sequence based on the given request.
+     *
+     * @param FizzBuzzRequestInterface $request The FizzBuzz request
      * @return array The generated FizzBuzz sequence
      */
-    public function generate(FizzBuzzRequest $request): array;
+    public function generateSequence(FizzBuzzRequestInterface $request): array;
 }

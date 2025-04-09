@@ -58,16 +58,16 @@ This will:
 - **GET** `/fizzbuzz`
 - Generates a FizzBuzz sequence based on provided parameters
 - Query Parameters:
-  - `int1`: First divisor (positive integer)
-  - `int2`: Second divisor (positive integer)
+  - `divisor1`: First divisor (positive integer)
+  - `divisor2`: Second divisor (positive integer)
   - `limit`: Upper limit of the sequence (positive integer)
-  - `str1`: String to use for multiples of int1 (non-empty string)
-  - `str2`: String to use for multiples of int2 (non-empty string)
+  - `str1`: String to use for multiples of divisor1 (non-empty string)
+  - `str2`: String to use for multiples of divisor2 (non-empty string)
 - Response: JSON object containing the sequence and request parameters
 
 Example:
 ```bash
-curl "http://localhost:8080/fizzbuzz?int1=2&int2=7&limit=100&str1=ola&str2=adeus"
+curl "http://localhost:8080/fizzbuzz?divisor1=2&divisor2=7&limit=100&str1=ola&str2=adeus"
 ```
 
 ### Statistics
@@ -204,13 +204,13 @@ The production environment includes:
 
 ### FizzBuzz Endpoint
 
-- `GET /fizzbuzz?int1=3&int2=5&limit=100&str1=fizz&str2=buzz`
+- `GET /fizzbuzz?divisor1=3&divisor2=5&limit=100&str1=fizz&str2=buzz`
   - Parameters:
-    - `int1`: First divisor
-    - `int2`: Second divisor
+    - `divisor1`: First divisor
+    - `divisor2`: Second divisor
     - `limit`: Upper limit of numbers to process
-    - `str1`: String to return for numbers divisible by int1
-    - `str2`: String to return for numbers divisible by int2
+    - `str1`: String to return for numbers divisible by divisor1
+    - `str2`: String to return for numbers divisible by divisor2
 
 ### Statistics Endpoint
 

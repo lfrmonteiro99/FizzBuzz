@@ -1,61 +1,27 @@
 monolog:
-    channels: ['app', 'request', 'security']
+    channels: ['app', 'request', 'messenger', 'error']
     handlers:
         main:
             type: stream
             path: "%kernel.logs_dir%/%kernel.environment%.log"
             level: debug
-            channels: ["!event"]
+            channels: ["!event", "!request", "!messenger", "!error"]
+        request:
+            type: stream
+            path: "%kernel.logs_dir%/request.log"
+            level: debug
+            channels: ["request"]
+        messenger:
+            type: stream
+            path: "%kernel.logs_dir%/messenger.log"
+            level: debug
+            channels: ["messenger"]
+        error:
+            type: stream
+            path: "%kernel.logs_dir%/error.log"
+            level: error
+            channels: ["error"]
         console:
             type: console
             process_psr_3_messages: false
             channels: ["!event", "!doctrine", "!console"]
-        app:
-            type: stream
-            path: "%kernel.logs_dir%/app.log"
-            level: debug
-            channels: ["app"]
-
-when@dev:
-    monolog:
-        handlers:
-            main:
-                type: stream
-                path: "%kernel.logs_dir%/%kernel.environment%.log"
-                level: debug
-                channels: ["!event"]
-
-when@test:
-    monolog:
-        handlers:
-            main:
-                type: fingers_crossed
-                action_level: error
-                handler: nested
-                excluded_http_codes: [404, 405]
-                channels: ["!event"]
-            nested:
-                type: stream
-                path: "%kernel.logs_dir%/%kernel.environment%.log"
-                level: debug
-
-when@prod:
-    monolog:
-        handlers:
-            main:
-                type: fingers_crossed
-                action_level: error
-                handler: nested
-                excluded_http_codes: [404, 405]
-                buffer_size: 50
-                channels: ["!event"]
-            nested:
-                type: stream
-                path: php://stderr
-                level: error
-                formatter: monolog.formatter.json
-            critical:
-                type: stream
-                path: php://stderr
-                level: critical
-                formatter: monolog.formatter.json

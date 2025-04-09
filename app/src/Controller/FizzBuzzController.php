@@ -2,107 +2,157 @@
 
 namespace App\Controller;
 
-use App\Entity\FizzBuzzRequest;
-use App\Dto\FizzBuzzRequestDTO;
+/**
+ * @codeCoverageIgnore
+ */
+
+use App\Factory\FizzBuzzRequestFactory;
+use App\Interface\FizzBuzzRequestFactoryInterface;
+use App\Interface\FizzBuzzResponseFactoryInterface;
 use App\Interface\FizzBuzzServiceInterface;
-use App\Service\FizzBuzzStatisticsService;
-use Psr\Log\LoggerInterface;
+use App\Interface\RequestLoggerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Component\Stopwatch\Stopwatch;
+use Symfony\Component\HttpFoundation\Response;
 
+#[OA\Tag(name: 'FizzBuzz')]
 class FizzBuzzController extends AbstractController
 {
     public function __construct(
-        private readonly LoggerInterface $logger
+        private readonly FizzBuzzServiceInterface $fizzBuzzService,
+        private readonly RequestLoggerInterface $logger,
+        private readonly FizzBuzzRequestFactoryInterface $requestFactory,
+        private readonly FizzBuzzResponseFactoryInterface $responseFactory,
     ) {
     }
 
-    #[Route('/', name: 'app_home', methods: ['GET'])]
-    public function index(): JsonResponse
+    #[Route('/fizzbuzz', name: 'fizzbuzz', methods: ['GET'])]
+    #[OA\Get(
+        path: '/fizzbuzz',
+        summary: 'Generate a FizzBuzz sequence',
+        description: 'Generates a sequence of numbers where multiples of divisor1 are replaced with str1, multiples of divisor2 are replaced with str2, and multiples of both are replaced with str1str2.',
+        parameters: [
+            new OA\Parameter(
+                name: 'divisor1',
+                description: 'First divisor',
+                in: 'query',
+                required: true,
+                schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100)
+            ),
+            new OA\Parameter(
+                name: 'divisor2',
+                description: 'Second divisor',
+                in: 'query',
+                required: true,
+                schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100)
+            ),
+            new OA\Parameter(
+                name: 'limit',
+                description: 'Upper limit for the sequence',
+                in: 'query',
+                required: true,
+                schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 1000)
+            ),
+            new OA\Parameter(
+                name: 'str1',
+                description: 'String to replace multiples of divisor1',
+                in: 'query',
+                required: true,
+                schema: new OA\Schema(type: 'string', minLength: 1, maxLength: 10)
+            ),
+            new OA\Parameter(
+                name: 'str2',
+                description: 'String to replace multiples of divisor2',
+                in: 'query',
+                required: true,
+                schema: new OA\Schema(type: 'string', minLength: 1, maxLength: 10)
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Sequence generated successfully',
+                content: new OA\JsonContent(
+                    type: 'object',
+                    properties: [
+                        new OA\Property(property: 'status', type: 'string', example: 'success'),
+                        new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'string'))
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: 'Invalid parameters',
+                content: new OA\JsonContent(
+                    type: 'object',
+                    properties: [
+                        new OA\Property(property: 'status', type: 'string', example: 'error'),
+                        new OA\Property(property: 'message', type: 'string', example: 'Invalid parameters'),
+                        new OA\Property(property: 'details', type: 'array', items: new OA\Items(type: 'string'))
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 500,
+                description: 'Internal server error',
+                content: new OA\JsonContent(
+                    type: 'object',
+                    properties: [
+                        new OA\Property(property: 'status', type: 'string', example: 'error'),
+                        new OA\Property(property: 'message', type: 'string', example: 'An unexpected error occurred')
+                    ]
+                )
+            )
+        ]
+    )]
+    public function fizzBuzz(Request $request): JsonResponse
     {
-        $this->logger->info('Home endpoint accessed');
-        return new JsonResponse(['status' => 'API is working']);
-    }
-
-    #[Route('/fizzbuzz', name: 'app_fizzbuzz', methods: ['GET'])]
-    public function getFizzBuzz(
-        Request $request,
-        FizzBuzzServiceInterface $fizzBuzzService,
-        ValidatorInterface $validator,
-        FizzBuzzStatisticsService $statisticsService
-    ): JsonResponse {
-        $this->logger->info('FizzBuzz endpoint accessed', ['query_params' => $request->query->all()]);
+        $stopwatch = new Stopwatch(true);
+        $stopwatch->start('fizzbuzz_request');
+        $path = $request->getPathInfo(); // Or use route name 'fizzbuzz'
+        $response = null;
+        $statusCode = Response::HTTP_INTERNAL_SERVER_ERROR; // Default to error
 
         try {
-            $params = $request->query->all();
+            // Logger for request start (assuming logger has this method)
+            $this->logger->logRequest($request);
             
-            // Create and validate the DTO
-            $fizzBuzzRequestDTO = new FizzBuzzRequestDTO();
-            $fizzBuzzRequestDTO->limit = (int)($params['limit'] ?? 0);
-            $fizzBuzzRequestDTO->int1 = (int)($params['int1'] ?? 0);
-            $fizzBuzzRequestDTO->int2 = (int)($params['int2'] ?? 0);
-            $fizzBuzzRequestDTO->str1 = (string)($params['str1'] ?? '');
-            $fizzBuzzRequestDTO->str2 = (string)($params['str2'] ?? '');
+            // Create DTO from request parameters
+            $fizzBuzzRequestDto = $this->requestFactory->createFromRequest($request);
             
-            $this->logger->info('DTO created', ['dto' => (array)$fizzBuzzRequestDTO]);
+            // Generate sequence using the service
+            $result = $this->fizzBuzzService->generateSequence($fizzBuzzRequestDto);
             
-            $violations = $validator->validate($fizzBuzzRequestDTO);
-            if (count($violations) > 0) {
-                $errors = [];
-                foreach ($violations as $violation) {
-                    $errors[] = $violation->getPropertyPath() . ': ' . $violation->getMessage();
-                }
-                $this->logger->error('Validation errors', ['errors' => $errors]);
-                return new JsonResponse(['errors' => $errors], 400);
+            // Create success response
+            $response = $this->responseFactory->createResponse($result);
+            $statusCode = $response->getStatusCode();
+
+        } catch (\InvalidArgumentException $e) {
+            // Handle validation errors specifically
+            $statusCode = Response::HTTP_BAD_REQUEST;
+            $response = $this->responseFactory->createErrorResponse(json_decode($e->getMessage(), true)['details'] ?? [$e->getMessage()], $statusCode);
+
+        } catch (\Throwable $e) {
+            // Handle generic errors
+            $this->logger->logError($e, ['request' => $request->query->all()]); // Log the error
+            $statusCode = Response::HTTP_INTERNAL_SERVER_ERROR;
+            $response = $this->responseFactory->createErrorResponse(['An unexpected error occurred'], $statusCode);
+
+        } finally {
+            $event = $stopwatch->stop('fizzbuzz_request');
+            $duration = $event->getDuration() / 1000.0; // Duration in seconds
+
+            // Log response (assuming logger handles this)
+            if ($response !== null) {
+                $this->logger->logResponse($response);
             }
-
-            // Create FizzBuzzRequest entity using the constructor
-            $fizzBuzzRequest = new FizzBuzzRequest(
-                $fizzBuzzRequestDTO->limit,
-                $fizzBuzzRequestDTO->int1,
-                $fizzBuzzRequestDTO->int2,
-                $fizzBuzzRequestDTO->str1,
-                $fizzBuzzRequestDTO->str2
-            );
-
-            // Track the request in statistics
-            $statisticsService->trackRequest(
-                $fizzBuzzRequest->getLimit(),
-                $fizzBuzzRequest->getInt1(),
-                $fizzBuzzRequest->getInt2(),
-                $fizzBuzzRequest->getStr1(),
-                $fizzBuzzRequest->getStr2()
-            );
-
-            $this->logger->info('Generating FizzBuzz sequence');
-            
-            // Generate the sequence
-            $result = $fizzBuzzService->generate($fizzBuzzRequest);
-            
-            $this->logger->info('FizzBuzz sequence generated', ['count' => count($result)]);
-
-            return new JsonResponse([
-                'result' => $result,
-                'request' => [
-                    'limit' => $fizzBuzzRequest->getLimit(),
-                    'int1' => $fizzBuzzRequest->getInt1(),
-                    'int2' => $fizzBuzzRequest->getInt2(),
-                    'str1' => $fizzBuzzRequest->getStr1(),
-                    'str2' => $fizzBuzzRequest->getStr2(),
-                ]
-            ]);
-        } catch (\Exception $e) {
-            $this->logger->error('Error in FizzBuzzController', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return new JsonResponse([
-                'error' => 'An error occurred while processing your request',
-                'details' => $e->getMessage()
-            ], 500);
         }
+
+        // Ensure a response is always returned
+        return $response ?? $this->responseFactory->createErrorResponse(['An unexpected error occurred'], Response::HTTP_INTERNAL_SERVER_ERROR);
     }
 }

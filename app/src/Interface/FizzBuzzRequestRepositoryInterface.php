@@ -2,6 +2,7 @@
 
 namespace App\Interface;
 
+use App\Dto\FizzBuzzRequestDto;
 use App\Entity\FizzBuzzRequest;
 
 /**
@@ -10,23 +11,50 @@ use App\Entity\FizzBuzzRequest;
 interface FizzBuzzRequestRepositoryInterface
 {
     /**
-     * Find or create a FizzBuzz request with the given parameters
-     * If the request already exists, increment its hit counter
-     * If not, create a new request
+     * Find the most frequently requested FizzBuzz sequence
      *
-     * @param int $limit The upper limit
-     * @param int $int1 The first divisor
-     * @param int $int2 The second divisor
-     * @param string $str1 The string for the first divisor
-     * @param string $str2 The string for the second divisor
-     * @return FizzBuzzRequest The request entity
-     */
-    public function findOrCreateRequest(int $limit, int $int1, int $int2, string $str1, string $str2): FizzBuzzRequest;
-    
-    /**
-     * Find the most frequently requested FizzBuzz configuration
-     *
-     * @return FizzBuzzRequest|null The most frequent request or null if no requests exist
+     * @return FizzBuzzRequest|null The most frequent request or null if none exists
      */
     public function findMostFrequentRequest(): ?FizzBuzzRequest;
+
+    /**
+     * Find an existing request with the given parameters or create a new one
+     *
+     * @param FizzBuzzRequestDto $dto The DTO containing the request parameters
+     * @return FizzBuzzRequest The request entity
+     */
+    public function findOrCreateRequest(FizzBuzzRequestDto $dto): FizzBuzzRequest;
+
+    /**
+     * Increment the hit count for a request
+     *
+     * @param FizzBuzzRequest $request The request to increment hits for
+     * @return void
+     */
+    public function incrementHits(FizzBuzzRequest $request): void;
+
+    /**
+     * Mark a request as processed
+     *
+     * @param FizzBuzzRequest $request The request to mark as processed
+     * @return void
+     */
+    public function markAsProcessed(FizzBuzzRequest $request): void;
+
+    /**
+     * Mark a request as failed
+     *
+     * @param FizzBuzzRequest $request The request to mark as failed
+     * @return void
+     */
+    public function markAsFailed(FizzBuzzRequest $request): void;
+
+    /**
+     * Save a FizzBuzzRequest entity
+     *
+     * @param FizzBuzzRequest $request The request to save
+     * @param bool $flush Whether to flush the entity manager
+     * @return void
+     */
+    public function save(FizzBuzzRequest $request, bool $flush = false): void;
 } 

@@ -30,3 +30,20 @@ docker-compose.override.yml
 
 # Local development overrides
 docker-compose.override.yml 
+
+# Environment files
+.env.test
+app/.env.prod.example
+app/.env.dev
+app/.env.local.example
+
+# Coverage reports
+app/coverage-functional.xml
+app/coverage-report/
+app/coverage.xml
+
+# Test configs that shouldn't be committed 
+app/config/services_test.yaml
+
+# PHP Unit files
+app/phpunit.functional.xml
