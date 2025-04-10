@@ -6,6 +6,7 @@ use App\Interface\FizzBuzzRequestInterface;
 use App\Interface\SequenceGeneratorInterface;
 use App\Interface\SequenceRuleFactoryInterface;
 use App\Interface\SequenceRuleInterface;
+use App\Service\Rule\CombinedDivisibleRule;
 
 class SequenceGenerator implements SequenceGeneratorInterface
 {
@@ -46,17 +47,30 @@ class SequenceGenerator implements SequenceGeneratorInterface
         $result = [];
         for ($i = $request->getStart(); $i <= $request->getLimit(); $i++) {
             $value = '';
+            $ruleApplied = false;
             
-            // Apply rules in order - only apply the first matching rule
+            // First check for combined rules (which have priority)
             foreach ($this->rules as $rule) {
-                if ($rule->appliesTo($i)) {
-                    $value = $rule->getReplacement();
-                    break; // Exit the loop once a rule has been applied
+                if ($rule instanceof CombinedDivisibleRule && $rule->appliesTo($i)) {
+                    $value = $rule->getReplacement(); // Just the replacement without duplicating
+                    $ruleApplied = true;
+                    break;
+                }
+            }
+            
+            // If no combined rule matched, check regular rules
+            if (!$ruleApplied) {
+                foreach ($this->rules as $rule) {
+                    if (!($rule instanceof CombinedDivisibleRule) && $rule->appliesTo($i)) {
+                        $value = $rule->getReplacement();
+                        $ruleApplied = true;
+                        break;
+                    }
                 }
             }
             
             // If no rules matched, use the number itself
-            if ($value === '') {
+            if (!$ruleApplied) {
                 $value = (string)$i;
             }
             

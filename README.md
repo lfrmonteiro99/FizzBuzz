@@ -196,10 +196,79 @@ Logs are stored in:
 
 ## Testing
 
-Run the test suite:
+### Setting Up the Test Environment
+
+To run tests, you'll need to create a proper test environment:
+
+1. **Create a `.env.test` file in the `app/` directory:**
+
+   ```bash
+   # Copy from .env and modify for testing
+   cp app/.env app/.env.test
+   ```
+
+2. **Modify the `.env.test` file with these settings:**
+
+   ```
+   # Use test environment
+   APP_ENV=test
+   
+   # Use SQLite for tests (faster, isolated)
+   DATABASE_URL="sqlite:///%kernel.project_dir%/var/data/test.db"
+   
+   # Disable feature flags in tests
+   FEATURE_FLAG_X=false
+   
+   # Higher log level to reduce noise
+   LOG_LEVEL=notice
+   MONOLOG_LEVEL=notice
+   ```
+
+3. **Create the test database:**
+
+   ```bash
+   docker-compose exec php bin/console doctrine:database:create --env=test --if-not-exists
+   docker-compose exec php bin/console doctrine:schema:create --env=test
+   ```
+
+### Running Tests
+
+Once your test environment is set up, you can run the tests:
+
 ```bash
+# Run all tests
 docker-compose exec php bin/phpunit
+
+# Run specific test suite
+docker-compose exec php bin/phpunit --testsuite=Unit
+
+# Run tests with coverage report
+docker-compose exec php bin/phpunit --coverage-html var/coverage
+
+# Run a specific test class
+docker-compose exec php bin/phpunit tests/Unit/Service/FizzBuzzServiceTest.php
 ```
+
+### Troubleshooting Tests
+
+If you encounter issues with the test environment:
+
+1. **Database Issues**: Reset your test database
+   ```bash
+   docker-compose exec php bin/console doctrine:schema:drop --env=test --force
+   docker-compose exec php bin/console doctrine:schema:create --env=test
+   ```
+
+2. **Permission Issues**: Fix permissions on the test database
+   ```bash
+   docker-compose exec php chmod 777 var/data/test.db
+   docker-compose exec php chmod 777 var/data
+   ```
+
+3. **Cache Issues**: Clear the test cache
+   ```bash
+   docker-compose exec php bin/console cache:clear --env=test
+   ```
 
 ## Contributing
 

@@ -18,6 +18,6 @@ framework:
     default_locale: en
     trusted_hosts: ['^.*$']
     trusted_headers: ['x-forwarded-for', 'x-forwarded-port', 'x-forwarded-proto']
-    trusted_proxies: ['127.0.0.1', 'REMOTE_ADDR']
+    trusted_proxies: "127.0.0.1"
     profiler:
         collect: false 

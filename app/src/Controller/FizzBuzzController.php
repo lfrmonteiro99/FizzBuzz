@@ -137,6 +137,7 @@ class FizzBuzzController extends AbstractController
             $response = $this->responseFactory->createErrorResponse(json_decode($e->getMessage(), true)['details'] ?? [$e->getMessage()], $statusCode);
 
         } catch (\Throwable $e) {
+            dd($e->getMessage());
             // Handle generic errors
             $this->logger->logError($e, ['request' => $request->query->all()]); // Log the error
             $statusCode = Response::HTTP_INTERNAL_SERVER_ERROR;
