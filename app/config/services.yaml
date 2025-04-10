@@ -8,8 +8,8 @@ parameters:
     app.log_path: '%kernel.logs_dir%/app.log'
     app.log_level: '%env(LOG_LEVEL:debug)%'
     redis_dsn: '%env(REDIS_URL)%'
-    app.version: '%env(default:1.0.0:APP_VERSION)%'
-    app.environment: '%env(default:dev:APP_ENV)%'
+    app.version: '%env(APP_VERSION)%'
+    app.environment: '%env(APP_ENV)%'
 
 services:
     # default configuration for services in *this* file
