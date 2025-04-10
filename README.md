@@ -217,86 +217,91 @@ app/
 - `FizzBuzzEvent::ZERO_DIVISORS`: Fired when zero divisors are detected
 
 ### Logging
-Logs are stored in:
-- `/var/log/php-fpm.log` (PHP logs)
-- `/var/log/nginx/access.log` (Nginx access logs)
-- `/var/log/nginx/error.log` (Nginx error logs)
+
+The application uses Monolog for comprehensive logging with different channels for various aspects of the application:
+
+### Log Files
+
+Log files are stored in the `app/var/log/` directory:
+
+- `app/var/log/dev.log` - General application logs
+- `app/var/log/request.log` - Request-specific logs
+- `app/var/log/messenger.log` - Message queue processing logs
+- `app/var/log/error.log` - Error logs
+
+### Log Levels
+
+Log levels can be configured through environment variables:
+
+```bash
+# Set log level (default: debug)
+LOG_LEVEL=debug  # Options: debug, info, notice, warning, error, critical, alert, emergency
+
+# Set Monolog level (default: debug)
+MONOLOG_LEVEL=debug  # Options: debug, info, notice, warning, error, critical, alert, emergency
+```
+
+### Viewing Logs
+
+To view logs in real-time:
+
+```bash
+# View all logs
+docker-compose exec php tail -f var/log/dev.log
+
+# View request logs
+docker-compose exec php tail -f var/log/request.log
+
+# View error logs
+docker-compose exec php tail -f var/log/error.log
+
+# View messenger logs
+docker-compose exec php tail -f var/log/messenger.log
+```
+
+### Log Channels
+
+The application uses different log channels for different purposes:
+
+- `app` - General application logs
+- `request` - Request-specific logs
+- `messenger` - Message queue processing logs
+- `error` - Error logs
+
+Each channel can be configured independently in the Monolog configuration.
 
 ## Testing
 
-### Setting Up the Test Environment
-
-To run tests, you'll need to create a proper test environment:
-
-1. **Create a `.env.test` file in the `app/` directory:**
-
-   ```bash
-   # Copy from .env and modify for testing
-   cp app/.env app/.env.test
-   ```
-
-2. **Modify the `.env.test` file with these settings:**
-
-   ```
-   # Use test environment
-   APP_ENV=test
-   
-   # Use SQLite for tests (faster, isolated)
-   DATABASE_URL="sqlite:///%kernel.project_dir%/var/data/test.db"
-   
-   # Disable feature flags in tests
-   FEATURE_FLAG_X=false
-   
-   # Higher log level to reduce noise
-   LOG_LEVEL=notice
-   MONOLOG_LEVEL=notice
-   ```
-
-3. **Create the test database:**
-
-   ```bash
-   docker-compose exec php bin/console doctrine:database:create --env=test --if-not-exists
-   docker-compose exec php bin/console doctrine:schema:create --env=test
-   ```
-
-### Running Tests
-
-Once your test environment is set up, you can run the tests:
+The application uses PHPUnit for testing. To run the tests:
 
 ```bash
 # Run all tests
-docker-compose exec php bin/phpunit
+docker-compose exec php sh -c "cd /var/www/app && bin/phpunit"
 
-# Run specific test suite
-docker-compose exec php bin/phpunit --testsuite=Unit
+# Run specific test file
+docker-compose exec php sh -c "cd /var/www/app && bin/phpunit tests/Controller/FizzBuzzControllerTest.php"
 
 # Run tests with coverage report
-docker-compose exec php bin/phpunit --coverage-html var/coverage
+docker-compose exec php sh -c "cd /var/www/app && bin/phpunit --coverage-html var/coverage"
 
-# Run a specific test class
-docker-compose exec php bin/phpunit tests/Unit/Service/FizzBuzzServiceTest.php
+# Run tests with specific filter
+docker-compose exec php sh -c "cd /var/www/app && bin/phpunit --filter testGetFizzBuzzWithValidParameters"
 ```
 
-### Troubleshooting Tests
+### Test Environment
 
-If you encounter issues with the test environment:
+The test environment is automatically configured with:
+- A separate test database
+- Test-specific environment variables
+- Proper permissions for test directories
 
-1. **Database Issues**: Reset your test database
-   ```bash
-   docker-compose exec php bin/console doctrine:schema:drop --env=test --force
-   docker-compose exec php bin/console doctrine:schema:create --env=test
-   ```
+### Test Structure
 
-2. **Permission Issues**: Fix permissions on the test database
-   ```bash
-   docker-compose exec php chmod 777 var/data/test.db
-   docker-compose exec php chmod 777 var/data
-   ```
-
-3. **Cache Issues**: Clear the test cache
-   ```bash
-   docker-compose exec php bin/console cache:clear --env=test
-   ```
+Tests are organized in the `app/tests/` directory:
+- `Controller/` - API endpoint tests
+- `Service/` - Business logic tests
+- `Factory/` - Factory tests
+- `Repository/` - Database interaction tests
 
 ## Contributing
 
