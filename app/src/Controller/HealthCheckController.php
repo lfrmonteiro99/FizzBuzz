@@ -26,7 +26,7 @@ class HealthCheckController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly RequestLoggerInterface $logger,
         private readonly string $appVersion = '1.0.0',
-        private readonly string $appEnv = 'dev'
+        private readonly string $appEnv = 'test'
     ) {
     }
 

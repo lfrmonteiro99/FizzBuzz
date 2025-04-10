@@ -44,37 +44,51 @@ class SequenceGenerator implements SequenceGeneratorInterface
             $this->rules = $this->ruleFactory->createRules($request);
         }
 
+        // Handle invalid range
+        if ($request->getStart() > $request->getLimit()) {
+            return [];
+        }
+
         $result = [];
         for ($i = $request->getStart(); $i <= $request->getLimit(); $i++) {
-            $value = '';
-            $ruleApplied = false;
+            $matchedReplacements = [];
+            $combinedRuleApplied = false;
             
-            // First check for combined rules (which have priority)
+            // Check if any CombinedDivisibleRule applies first
             foreach ($this->rules as $rule) {
                 if ($rule instanceof CombinedDivisibleRule && $rule->appliesTo($i)) {
-                    $value = $rule->getReplacement(); // Just the replacement without duplicating
-                    $ruleApplied = true;
-                    break;
-                }
-            }
-            
-            // If no combined rule matched, check regular rules
-            if (!$ruleApplied) {
-                foreach ($this->rules as $rule) {
-                    if (!($rule instanceof CombinedDivisibleRule) && $rule->appliesTo($i)) {
-                        $value = $rule->getReplacement();
-                        $ruleApplied = true;
+                    $replacement = $rule->getReplacement();
+                    if (!empty($replacement)) {
+                        // For numbers divisible by both divisors, we only use the combined rule
+                        $result[] = $replacement;
+                        $combinedRuleApplied = true;
                         break;
                     }
                 }
             }
             
-            // If no rules matched, use the number itself
-            if (!$ruleApplied) {
-                $value = (string)$i;
+            // Skip to next number if a combined rule was applied
+            if ($combinedRuleApplied) {
+                continue;
             }
             
-            $result[] = $value;
+            // Check all other rules that apply
+            foreach ($this->rules as $rule) {
+                if (!($rule instanceof CombinedDivisibleRule) && $rule->appliesTo($i)) {
+                    $replacement = $rule->getReplacement();
+                    if (!empty($replacement)) {
+                        $matchedReplacements[] = $replacement;
+                    }
+                }
+            }
+            
+            // If no rules matched or all replacements were empty, use the number itself
+            if (empty($matchedReplacements)) {
+                $result[] = (string)$i;
+            } else {
+                // For custom rules, concatenate all replacements when multiple apply
+                $result[] = implode('', $matchedReplacements);
+            }
         }
 
         return $result;

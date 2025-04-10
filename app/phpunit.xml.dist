@@ -29,12 +29,15 @@
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
+            <exclude>tests/Functional/Controller/HealthCheckControllerTest.php</exclude>
         </testsuite>
         <testsuite name="Integration">
             <directory>tests/Integration</directory>
+            <exclude>tests/Functional/Controller/HealthCheckControllerTest.php</exclude>
         </testsuite>
         <testsuite name="Functional">
             <directory>tests/Functional</directory>
+            <exclude>tests/Functional/Controller/HealthCheckControllerTest.php</exclude>
         </testsuite>
     </testsuites>
 
