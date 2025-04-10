@@ -70,6 +70,7 @@ create_symfony_env() {
 ###> symfony/framework-bundle ###
 APP_ENV=${APP_ENV:-dev}
 APP_SECRET=${APP_SECRET}
+APP_VERSION=${APP_VERSION:-1.0.0}
 ###< symfony/framework-bundle ###
 
 ###> doctrine/doctrine-bundle ###

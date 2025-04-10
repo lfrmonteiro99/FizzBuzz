@@ -441,3 +441,70 @@ Never commit sensitive information such as:
 ### Docker Ignore
 
 The `.dockerignore` file prevents sensitive files from being included in Docker images, keeping them secure and smaller in size.
+
+## Message Queue Management
+
+The application uses Redis as a message broker for asynchronous processing. Here's how to manage the message queue:
+
+### Checking Queue Messages
+
+To check messages in the queue:
+
+```bash
+# Connect to Redis CLI
+docker-compose exec redis redis-cli
+
+# List all streams
+127.0.0.1:6379> XINFO STREAM messages
+
+# Read messages from the stream
+127.0.0.1:6379> XREAD COUNT 10 STREAMS messages 0
+
+# Get stream information
+127.0.0.1:6379> XINFO STREAM messages
+```
+
+### Managing the Consumer
+
+The consumer is responsible for processing messages from the queue. By default, it runs in a separate container (`messenger-worker`), but you can also run it manually:
+
+```bash
+# Check if the consumer is running
+docker-compose ps messenger-worker
+
+# Start the consumer manually (if not running)
+docker-compose exec php bin/console messenger:consume async
+
+# Start the consumer with specific options
+docker-compose exec php bin/console messenger:consume async \
+    --time-limit=3600 \  # Run for 1 hour
+    --memory-limit=512M \  # Memory limit
+    --limit=1000  # Process 1000 messages
+
+# Stop the consumer
+docker-compose exec php bin/console messenger:stop-workers
+```
+
+### Troubleshooting
+
+If messages are not being processed:
+
+1. Check if the consumer is running:
+   ```bash
+   docker-compose ps messenger-worker
+   ```
+
+2. Check the consumer logs:
+   ```bash
+   docker-compose logs messenger-worker
+   ```
+
+3. Restart the consumer:
+   ```bash
+   docker-compose restart messenger-worker
+   ```
+
+4. If needed, clear the queue:
+   ```bash
+   docker-compose exec redis redis-cli DEL messages
+   ```
