@@ -2,8 +2,16 @@
 
 A Symfony-based REST API that implements the FizzBuzz game with additional features like request tracking, statistics, and event handling.
 
-## ⚠️ Important Note on Environment Variables ⚠️
+## ⚠️ Important Notes ⚠️
 
+### Project Structure
+This project has a specific structure:
+- The Symfony application exists **ONLY** in the `app/` directory
+- Files in the root directory are for Docker and deployment configuration only
+- All development should be done inside the `app/` directory
+- Do NOT edit Symfony files that might exist in the root directory
+
+### Environment Variables
 **Before running this application, you MUST properly configure the environment variables!**
 
 The application requires certain environment variables to be properly set:

@@ -2,6 +2,13 @@
 
 set -e
 
+# Warning about Symfony file structure
+echo "⚠️  Warning: This project has a specific structure!"
+echo "  - The Symfony application should be ONLY in the 'app/' directory"
+echo "  - Files in the root directory are for Docker and deployment configuration only"
+echo "  - Do not work with Symfony files in the root directory"
+echo ""
+
 # Function to check if environment variables are set
 check_env_vars() {
     local missing_vars=()
@@ -61,7 +68,7 @@ check_env_vars() {
 
 # Function to create Symfony .env file
 create_symfony_env() {
-    echo "Creating Symfony .env file..."
+    echo "Creating Symfony .env file in app/ directory..."
     
     # Create properly formatted Symfony .env file
     cat > app/.env << EOF
@@ -102,13 +109,20 @@ EOF
 # Main script execution
 echo "Starting FizzBuzz application setup..."
 
+# Check for duplicate Symfony files in root
+if [ -f "composer.json" ] && [ -f "app/composer.json" ]; then
+    echo "⚠️  Warning: Found duplicate composer.json files in root and app/ directories."
+    echo "    The correct location for composer.json is ONLY in the app/ directory."
+    echo "    Files in the root should only be for Docker configuration."
+fi
+
 # Check and process environment variables
 if ! check_env_vars; then
     exit 1
 fi
 
 # Copy .env.docker to root .env for Docker Compose
-echo "Copying .env.docker to .env..."
+echo "Copying .env.docker to .env for Docker Compose..."
 cp .env.docker .env
 
 # Create properly formatted Symfony .env
@@ -136,10 +150,12 @@ docker-compose exec -T php /bin/bash -c "
 "
 
 # Initialize database
-echo "Running migrations..."
+echo "Running migrations inside app/ directory..."
 docker-compose exec -T php php bin/console doctrine:migrations:migrate --no-interaction || echo "Migrations failed, but continuing..."
 echo "Loading fixtures..."
 docker-compose exec -T php php bin/console doctrine:fixtures:load --no-interaction --append || echo "Fixtures failed, but continuing..."
 
 echo "Setup complete! Your application is now running."
-echo "Access the application at: http://localhost:${NGINX_PORT:-80}" 
+echo "Access the application at: http://localhost:${NGINX_PORT:-80}"
+echo ""
+echo "⚠️  Remember: All Symfony development should be done in the app/ directory!" 

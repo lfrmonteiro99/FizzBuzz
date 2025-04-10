@@ -1,16 +1,19 @@
 #!/bin/bash
 set -e
 
-# Copy the environment variables from Docker to Symfony
-if [ ! -f /var/www/app/.env.local ]; then
-    echo "Creating .env.local file with environment variables"
+echo "Entering docker-entrypoint.sh"
+echo "Working directory: $(pwd)"
+echo "App files: $(ls -la /var/www/app)"
+echo "Env file exists: $(test -f /var/www/app/.env && echo 'Yes' || echo 'No')"
+
+# Only create .env.local if it doesn't exist AND .env does exist
+if [ ! -f /var/www/app/.env.local ] && [ -f /var/www/app/.env ]; then
+    echo "Creating .env.local file with additional environment variables"
     cat > /var/www/app/.env.local <<EOF
-APP_ENV=${APP_ENV:-dev}
-APP_SECRET=${APP_SECRET:-$(openssl rand -hex 16)}
-DATABASE_URL="mysql://${MYSQL_USER:-symfony}:${MYSQL_PASSWORD:-symfony}@mysql:3306/${MYSQL_DATABASE:-symfony}?serverVersion=8.0&charset=utf8mb4"
-# Logging Configuration
+# Local overrides - created by docker-entrypoint.sh
+# These values override the ones in .env
+MESSENGER_TRANSPORT_DSN=${MESSENGER_TRANSPORT_DSN:-redis://redis:6379/messages}
 LOG_LEVEL=${LOG_LEVEL:-debug}
-MONOLOG_LEVEL=${MONOLOG_LEVEL:-debug}
 EOF
 fi
 
@@ -55,9 +58,21 @@ if [ -f "/var/www/app/composer.lock" ]; then
     rm /var/www/app/composer.lock
 fi
 
-# Copy .env file if it doesn't exist
+# Check if .env exists - it should be created by start.sh
 if [ ! -f "/var/www/app/.env" ]; then
-    cp /var/www/app/.env.docker /var/www/app/.env
+    echo "WARNING: .env file is missing in /var/www/app/"
+    echo "It should have been created by start.sh - creating a basic one now."
+    cat > /var/www/app/.env <<EOF
+###> symfony/framework-bundle ###
+APP_ENV=${APP_ENV:-dev}
+APP_SECRET=${APP_SECRET:-$(openssl rand -hex 16)}
+###< symfony/framework-bundle ###
+
+###> doctrine/doctrine-bundle ###
+DATABASE_URL="mysql://${MYSQL_USER:-symfony}:${MYSQL_PASSWORD:-symfony}@mysql:3306/${MYSQL_DATABASE:-symfony}?serverVersion=8.0&charset=utf8mb4"
+###< doctrine/doctrine-bundle ###
+EOF
+    echo "Created a basic .env file. You may need to restart to pick up all settings."
 fi
 
 # Install dependencies
