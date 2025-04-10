@@ -2,6 +2,38 @@
 
 A Symfony-based REST API that implements the FizzBuzz game with additional features like request tracking, statistics, and event handling.
 
+## ⚠️ Important Note on Environment Variables ⚠️
+
+**Before running this application, you MUST properly configure the environment variables!**
+
+The application requires certain environment variables to be properly set:
+- `MYSQL_ROOT_PASSWORD`
+- `MYSQL_DATABASE`
+- `MYSQL_USER`
+- `MYSQL_PASSWORD`
+- `APP_SECRET`
+- `REDIS_PASSWORD` (if using password protection for Redis)
+
+The good news is that you have two easy ways to set these variables:
+
+1. **Using the improved start.sh script (recommended):**
+   - Run `./start.sh` and it will check for missing variables
+   - If variables are missing, it will prompt you to enter them
+   - It automatically creates both the Docker `.env` and Symfony `.env` files
+
+2. **Manually setting variables:**
+   - Set these in your shell environment before running start.sh:
+     ```bash
+     export MYSQL_ROOT_PASSWORD=secure_root_password
+     export MYSQL_DATABASE=symfony
+     export MYSQL_USER=symfony_user
+     export MYSQL_PASSWORD=symfony_password
+     export APP_SECRET=your_secure_app_secret
+     ```
+   - Or edit `.env.docker` directly with your values
+   
+See the [Environment Variables](#environment-variables) section for more details.
+
 ## Features
 
 - FizzBuzz sequence generation with customizable parameters
@@ -24,28 +56,31 @@ A Symfony-based REST API that implements the FizzBuzz game with additional featu
 1. Clone the repository:
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/lfrmonteiro99/FizzBuzz.git
    cd fizzbuzz
    ```
 
-2. Create environment files:
-
-   ```bash
-   cp .env.docker.example .env.docker
-   ```
-
-3. Start the containers:
+2. Run the setup script:
 
    ```bash
    ./start.sh
    ```
 
-This will:
-- Build and start the Docker containers
-- Install Composer dependencies
-- Create the database
-- Run database migrations
-- Clear the cache
+   The script will:
+   - Check for missing environment variables and prompt you to enter them
+   - Create all necessary configuration files
+   - Build and start the Docker containers
+   - Install Composer dependencies
+   - Create the database and run migrations
+   - Set proper permissions for cache and log directories
+
+3. That's it! Your application will be available at:
+
+   ```
+   http://localhost:8080
+   ```
+
+If you encounter any issues, see the [Troubleshooting](#troubleshooting) section.
 
 ## API Endpoints
 
@@ -74,6 +109,47 @@ curl "http://localhost:8080/fizzbuzz?divisor1=2&divisor2=7&limit=100&str1=ola&st
 - **GET** `/statistics`
 - Returns the most frequent FizzBuzz request
 - Response: JSON object containing the most frequent request parameters and hit count
+
+## Environment Variables
+
+The application uses a streamlined approach to environment variables:
+
+1. **Docker Environment Variables** (`.env.docker`):
+   - Used by Docker Compose to configure the containers
+   - Values can be set in three ways:
+     - From your host environment variables
+     - By editing the file directly
+     - Through the interactive prompts in `start.sh`
+
+2. **Application Environment Variables** (Symfony's `app/.env`):
+   - Used by the Symfony application
+   - **Automatically generated** by the `start.sh` script
+   - You don't need to manually edit this file
+
+### Key Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MYSQL_ROOT_PASSWORD` | MySQL root password | None (must be set) |
+| `MYSQL_DATABASE` | Database name | symfony |
+| `MYSQL_USER` | Database user | None (must be set) |
+| `MYSQL_PASSWORD` | Database password | None (must be set) |
+| `APP_ENV` | Application environment | dev |
+| `APP_SECRET` | Application secret | None (must be set) |
+| `MESSENGER_TRANSPORT_DSN` | Message queue configuration | redis://redis:6379/messages |
+| `REDIS_PASSWORD` | Redis password | null |
+
+### Generating Secure Values
+
+For security-sensitive variables, use these commands to generate secure values:
+
+```bash
+# Generate a secure APP_SECRET
+openssl rand -hex 16
+
+# Generate a secure password
+openssl rand -base64 20
+```
 
 ## Development
 
@@ -196,124 +272,38 @@ The production environment includes:
 - Container health checks for monitoring
 - Database optimization for performance and security
 
-## Running the Application
-
-- The application will be available at: http://localhost:8080 (or the port you specified in APP_PORT)
-
-## API Endpoints
-
-### FizzBuzz Endpoint
-
-- `GET /fizzbuzz?divisor1=3&divisor2=5&limit=100&str1=fizz&str2=buzz`
-  - Parameters:
-    - `divisor1`: First divisor
-    - `divisor2`: Second divisor
-    - `limit`: Upper limit of numbers to process
-    - `str1`: String to return for numbers divisible by divisor1
-    - `str2`: String to return for numbers divisible by divisor2
-
-### Statistics Endpoint
-
-- `GET /statistics`
-  - Returns the most frequently used FizzBuzz request parameters
-
-## Running Tests
-
-### Executing Tests
-
-Since the test environment is automatically configured, you can simply run:
-
-```bash
-docker-compose exec php bin/phpunit
-```
-
-For test coverage report:
-
-```bash
-docker-compose exec php bin/phpunit --coverage-text
-```
-
-## Development
-
-### Adding New Dependencies
-
-If you need to add new packages to your project:
-
-```bash
-docker-compose exec php composer require package-name
-```
-
-For development dependencies:
-
-```bash
-docker-compose exec php composer require --dev package-name
-```
-
-### Database Migrations
-
-If you change entity structure, create and run migrations:
-
-```bash
-# Generate a migration
-docker-compose exec php bin/console doctrine:migrations:diff
-
-# Execute migrations
-docker-compose exec php bin/console doctrine:migrations:migrate
-```
-
-### Clearing Cache
-
-If you experience issues after configuration changes:
-
-```bash
-docker-compose exec php bin/console cache:clear
-```
-
-### Logging
-
-The application is configured with comprehensive logging:
-
-1. **Application Logs**: Located in `app/var/log/`
-
-   - `dev.log` - All logs in development environment
-   - `app.log` - Application-specific logs
-   - `test.log` - Test environment logs
-
-2. **Docker Logs**: View container logs with:
-
-   ```bash
-   # View PHP container logs
-   docker-compose logs php
-
-   # View Nginx logs
-   docker-compose logs nginx
-
-   # Follow logs in real-time
-   docker-compose logs -f php
-   ```
-
-3. **Log Rotation**: A log rotation script is available to prevent logs from growing too large:
-   ```bash
-   docker-compose exec php /var/www/app/bin/rotate-logs.sh
-   ```
-4. **Logging Levels**: Set the logging level in `.env.docker`:
-   ```
-   LOG_LEVEL=debug # Options: debug, info, notice, warning, error, critical, alert, emergency
-   ```
-
 ## Troubleshooting
 
-### Database Connection Issues
+### Common Issues
 
-If you have issues connecting to the database:
+1. **Permission errors in log or cache directories**
+   - Run `./start.sh` with appropriate permissions
+   - The script will request sudo access if needed to fix permissions
 
-1. Ensure Docker containers are running: `docker-compose ps`
-2. Check the environment variables are correctly set in `.env.docker`
-3. Try restarting the containers: `docker-compose restart`
+2. **Redis connection errors**
+   - Check that the Redis password is correctly set in both .env files
+   - Ensure that the Redis service is running: `docker-compose ps`
 
-### WSL Users
+3. **Database connection issues**
+   - Verify your DATABASE_URL matches your MYSQL_* variables
+   - Wait a few seconds after initial startup for the database to initialize
 
-If using Windows with WSL, make sure the project is located in the WSL filesystem, not the Windows filesystem, for better performance.
+### Viewing Logs
+
+To see application logs:
+```bash
+docker-compose logs php
+```
+
+To see web server logs:
+```bash
+docker-compose logs nginx
+```
+
+To follow logs in real-time:
+```bash
+docker-compose logs -f php
+```
 
 ## Version Control & Security
 

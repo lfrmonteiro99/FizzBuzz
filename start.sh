@@ -1,118 +1,145 @@
 #!/bin/bash
 
-# Check if .env.docker exists
-if [ ! -f .env.docker ]; then
-    echo "Error: .env.docker file not found!"
-    echo "Please create it by copying .env.docker.example to .env.docker and filling in your values."
+set -e
+
+# Function to check if environment variables are set
+check_env_vars() {
+    local missing_vars=()
+    
+    # Check if .env.docker exists
+    if [ -f .env.docker ]; then
+        echo "Found .env.docker file, sourcing variables..."
+        source .env.docker
+    else
+        echo "WARNING: .env.docker file not found!"
+        echo "Creating it from .env.docker.example..."
+        
+        if [ -f .env.docker.example ]; then
+            cp .env.docker.example .env.docker
+            echo "Created .env.docker from example file. Please review and update values as needed."
+            source .env.docker
+        else
+            echo "ERROR: .env.docker.example not found!"
+            echo "Cannot create configuration files."
+            return 1
+        fi
+    fi
+    
+    # Check required variables
+    [ -z "$MYSQL_ROOT_PASSWORD" ] && missing_vars+=("MYSQL_ROOT_PASSWORD")
+    [ -z "$MYSQL_DATABASE" ] && missing_vars+=("MYSQL_DATABASE")
+    [ -z "$MYSQL_USER" ] && missing_vars+=("MYSQL_USER")
+    [ -z "$MYSQL_PASSWORD" ] && missing_vars+=("MYSQL_PASSWORD")
+    [ -z "$APP_SECRET" ] && missing_vars+=("APP_SECRET")
+    
+    # If there are missing variables
+    if [ ${#missing_vars[@]} -gt 0 ]; then
+        echo "The following required environment variables are missing or empty:"
+        for var in "${missing_vars[@]}"; do
+            echo "  - $var"
+        done
+        
+        read -p "Would you like to set these variables now? (y/n): " choice
+        if [[ $choice =~ ^[Yy]$ ]]; then
+            for var in "${missing_vars[@]}"; do
+                read -p "Enter value for $var: " value
+                echo "$var=$value" >> .env.docker
+            done
+            echo "Updated .env.docker with new values."
+        else
+            echo "Warning: Continuing with missing environment variables may cause issues!"
+            read -p "Do you want to continue anyway? (y/n): " continue_anyway
+            if [[ ! $continue_anyway =~ ^[Yy]$ ]]; then
+                echo "Exiting..."
+                return 1
+            fi
+        fi
+    fi
+    
+    return 0
+}
+
+# Function to create Symfony .env file
+create_symfony_env() {
+    echo "Creating Symfony .env file..."
+    
+    # Create properly formatted Symfony .env file
+    cat > app/.env << EOF
+###> symfony/framework-bundle ###
+APP_ENV=${APP_ENV:-dev}
+APP_SECRET=${APP_SECRET}
+###< symfony/framework-bundle ###
+
+###> doctrine/doctrine-bundle ###
+# Format described at https://www.doctrine-project.org/projects/doctrine-dbal/en/latest/reference/configuration.html#connecting-using-a-url
+# IMPORTANT: You MUST configure your server version, either here or in config/packages/doctrine.yaml
+DATABASE_URL=mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}?serverVersion=8.0.33&charset=utf8mb4
+###< doctrine/doctrine-bundle ###
+
+###> symfony/messenger ###
+# Choose one of the transports below
+MESSENGER_TRANSPORT_DSN=${MESSENGER_TRANSPORT_DSN:-redis://redis:6379/messages}
+###< symfony/messenger ###
+
+###> symfony/monolog-bundle ###
+MONOLOG_LEVEL=${MONOLOG_LEVEL:-debug}
+LOG_LEVEL=${LOG_LEVEL:-debug}
+MONOLOG_CHANNEL=${MONOLOG_CHANNEL:-app}
+###< symfony/monolog-bundle ###
+
+###> Redis configuration ###
+REDIS_URL=${REDIS_URL:-redis://redis:6379}
+REDIS_HOST=${REDIS_HOST:-redis}
+REDIS_PORT=${REDIS_PORT:-6379}
+REDIS_PASSWORD=${REDIS_PASSWORD:-}
+REDIS_DB=${REDIS_DB:-0}
+###< Redis configuration ###
+EOF
+    
+    echo "Symfony .env file created successfully."
+}
+
+# Main script execution
+echo "Starting FizzBuzz application setup..."
+
+# Check and process environment variables
+if ! check_env_vars; then
     exit 1
 fi
 
-# Copy .env.docker to .env (Docker Compose automatically uses .env in the current directory)
-echo "Copying environment variables from .env.docker to .env..."
+# Copy .env.docker to root .env for Docker Compose
+echo "Copying .env.docker to .env..."
 cp .env.docker .env
 
-# Create .env file in app directory too
-echo "Creating .env file in app directory..."
-cp .env.docker app/.env
+# Create properly formatted Symfony .env
+create_symfony_env
 
-# Delete composer.lock (don't try to delete vendor directory directly)
-echo "Removing composer.lock to ensure clean installation..."
-if [ -f app/composer.lock ]; then
-    rm app/composer.lock
-    echo "composer.lock deleted"
-fi
+# Make sure var directory exists with proper permissions
+echo "Setting file permissions..."
+mkdir -p app/var/{cache,log}
+chmod -R 777 app/var/
 
-# Fix Symfony version conflicts in composer.json
-echo "Fixing Symfony version conflicts in composer.json..."
-# Update the symfony extra version requirement to match the framework-bundle
-sed -i 's/"require": "7\.2\.\*"/"require": "6\.4\.\*"/g' app/composer.json
-# Fix the dev dependencies to use the same version
-sed -i 's/"symfony\/browser-kit": "7\.2\.\*"/"symfony\/browser-kit": "6\.4\.\*"/g' app/composer.json
-sed -i 's/"symfony\/css-selector": "7\.2\.\*"/"symfony\/css-selector": "6\.4\.\*"/g' app/composer.json
-sed -i 's/"symfony\/debug-bundle": "7\.2\.\*"/"symfony\/debug-bundle": "6\.4\.\*"/g' app/composer.json
-sed -i 's/"symfony\/phpunit-bridge": "\^7\.2"/"symfony\/phpunit-bridge": "\^6\.4"/g' app/composer.json
-sed -i 's/"symfony\/var-dumper": "7\.2\.\*"/"symfony\/var-dumper": "6\.4\.\*"/g' app/composer.json
-
-# Add the validator and twig bundle directly to composer.json
-echo "Adding required packages to composer.json..."
-if ! grep -q "\"symfony/validator\"" app/composer.json; then
-    sed -i '/"symfony\/yaml"/i \        "symfony\/validator": "6.4.*",' app/composer.json
-    echo "Added symfony/validator to composer.json"
-fi
-if ! grep -q "\"symfony/twig-bundle\"" app/composer.json; then
-    sed -i '/"symfony\/validator"/i \        "symfony\/twig-bundle": "6.4.*",' app/composer.json
-    echo "Added symfony/twig-bundle to composer.json"
-fi
-if ! grep -q "\"nelmio/api-doc-bundle\"" app/composer.json; then
-    sed -i '/"symfony\/twig-bundle"/i \        "nelmio\/api-doc-bundle": "^5.0",' app/composer.json
-    echo "Added nelmio/api-doc-bundle to composer.json"
-fi
-if ! grep -q "\"symfony/redis-messenger\"" app/composer.json; then
-    sed -i '/"symfony\/messenger"/i \        "symfony\/redis-messenger": "6.4.*",' app/composer.json
-    echo "Added symfony/redis-messenger to composer.json"
-fi
-
-echo "Updated composer.json to use Symfony 6.4.* and added required packages"
-
-# Rebuild containers and force a clean start
-echo "Rebuilding containers from scratch..."
-docker-compose down
-docker-compose build --no-cache
-
-# Run Docker Compose
-echo "Starting Docker containers..."
+# Start Docker containers
+echo "Starting Docker containers with docker-compose..."
 docker-compose up -d
 
-# Wait for containers to fully start
-echo "Waiting for containers to fully start..."
-sleep 15
+# Wait for database to be ready
+echo "Waiting for database to be ready..."
+docker-compose exec -T php /bin/bash -c "
+    set -e
+    echo 'Waiting for MySQL connection...'
+    until php -r \"mysqli_connect('mysql', getenv('MYSQL_USER'), getenv('MYSQL_PASSWORD'), getenv('MYSQL_DATABASE'));\" > /dev/null 2>&1; do
+        echo 'MySQL connection unavailable - sleeping'
+        sleep 1
+    done
+    echo 'MySQL connection established'
+"
 
-# Initialize Redis Stream for Messenger 
-echo "Initializing Redis Stream for Messenger..."
-docker-compose exec -T redis bash -c '
-# Create the messages stream if it doesn't exist
-redis-cli XGROUP CREATE messages fizzbuzz $ MKSTREAM || echo "Stream already exists or group already created"
-'
-
-# Install dependencies properly
-echo "Installing dependencies (this may take a few minutes)..."
-docker-compose exec -T php bash -c '
-cd /var/www/app
-
-# Make sure directory is clean
-echo "Cleaning vendor directory..."
-rm -rf vendor
-
-# Install dependencies step by step
-echo "Installing Composer dependencies..."
-composer install --no-interaction --optimize-autoloader
-
-# Install key packages separately to ensure they are available
-echo "Ensuring key packages are installed..."
-composer require symfony/validator --no-interaction
-composer require symfony/twig-bundle --no-interaction
-composer require nelmio/api-doc-bundle --no-interaction
-composer require symfony/redis-messenger --no-interaction
-
-# Set up database
-echo "Setting up database..."
-echo "Creating database..."
-php bin/console doctrine:database:create --if-not-exists --no-interaction || echo "Database creation failed, but continuing..."
+# Initialize database
 echo "Running migrations..."
-php bin/console doctrine:migrations:migrate --no-interaction || echo "Migrations failed, but continuing..."
+docker-compose exec -T php php bin/console doctrine:migrations:migrate --no-interaction || echo "Migrations failed, but continuing..."
+echo "Loading fixtures..."
+docker-compose exec -T php php bin/console doctrine:fixtures:load --no-interaction --append || echo "Fixtures failed, but continuing..."
 
-# Fix cache directory permissions and structure
-echo "Setting up cache directory structure..."
-mkdir -p var/cache
-rm -rf var/cache/*
-chmod -R 777 var/cache
-mkdir -p var/cache/local
-chmod -R 777 var/cache/local
-
-# Clear cache
-echo "Clearing cache..."
-APP_ENV=local php bin/console cache:clear --no-warmup || echo "Cache clear failed, but continuing..."
-'
-
-echo "Docker environment is now running!"
-echo "You can access the application at: http://localhost:$(grep APP_PORT .env.docker | cut -d= -f2 || echo "8080")" 
+echo "Setup complete! Your application is now running."
+echo "Access the application at: http://localhost:${NGINX_PORT:-80}" 
