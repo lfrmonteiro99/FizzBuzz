@@ -89,7 +89,31 @@ See the [Environment Variables](#environment-variables) section for more details
 
 If you encounter any issues, see the [Troubleshooting](#troubleshooting) section.
 
-## API Endpoints
+## API Documentation
+
+The API is documented using OpenAPI/Swagger. You can access the interactive API documentation at:
+
+```
+http://localhost:8080/api/doc
+```
+
+This provides:
+- Interactive endpoint testing
+- Request/response examples
+- Schema definitions
+- Authentication requirements
+- Detailed parameter descriptions
+
+The raw OpenAPI specification is available at:
+```
+http://localhost:8080/api/doc.json
+```
+
+You can also import this specification into tools like Postman or Insomnia for testing.
+
+### API Endpoints
+
+> 💡 **Tip**: For the most up-to-date API documentation, please visit the Swagger UI at `http://localhost:8080/api/doc`
 
 ### Home
 - **GET** `/`
@@ -119,44 +143,48 @@ curl "http://localhost:8080/fizzbuzz?divisor1=2&divisor2=7&limit=100&str1=ola&st
 
 ## Environment Variables
 
-The application uses a streamlined approach to environment variables:
+The application uses environment variables for configuration. These are managed through `.env` files:
 
-1. **Docker Environment Variables** (`.env.docker`):
-   - Used by Docker Compose to configure the containers
-   - Values can be set in three ways:
-     - From your host environment variables
-     - By editing the file directly
-     - Through the interactive prompts in `start.sh`
+- `.env.docker.example` - Template file with example values
+- `.env.docker` - Your local configuration (do not commit this file)
 
-2. **Application Environment Variables** (Symfony's `app/.env`):
-   - Used by the Symfony application
-   - **Automatically generated** by the `start.sh` script
-   - You don't need to manually edit this file
+### Required Variables
 
-### Key Variables
+| Variable | Description | Example |
+|----------|-------------|---------|
+| MYSQL_ROOT_PASSWORD | Root password for MySQL | `your-secure-password` |
+| MYSQL_DATABASE | Database name | `fizzbuzz` |
+| MYSQL_USER | Database user | `fizzbuzz_user` |
+| MYSQL_PASSWORD | Database password | `your-secure-password` |
+| APP_SECRET | Symfony application secret | `your-32-char-secret` |
+
+### Setting Up Environment
+
+1. Copy the example file:
+   ```bash
+   cp .env.docker.example .env.docker
+   ```
+
+2. Generate a secure APP_SECRET:
+   ```bash
+   openssl rand -hex 16
+   ```
+
+3. Update `.env.docker` with your values:
+   - Use strong passwords for database credentials
+   - Never commit `.env.docker` to version control
+   - Keep your APP_SECRET secure and unique per environment
+
+> 💡 **Note**: The `start.sh` script will guide you through setting required variables if they're missing.
+
+### Optional Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MYSQL_ROOT_PASSWORD` | MySQL root password | None (must be set) |
-| `MYSQL_DATABASE` | Database name | symfony |
-| `MYSQL_USER` | Database user | None (must be set) |
-| `MYSQL_PASSWORD` | Database password | None (must be set) |
-| `APP_ENV` | Application environment | dev |
-| `APP_SECRET` | Application secret | None (must be set) |
-| `MESSENGER_TRANSPORT_DSN` | Message queue configuration | redis://redis:6379/messages |
-| `REDIS_PASSWORD` | Redis password | null |
-
-### Generating Secure Values
-
-For security-sensitive variables, use these commands to generate secure values:
-
-```bash
-# Generate a secure APP_SECRET
-openssl rand -hex 16
-
-# Generate a secure password
-openssl rand -base64 20
-```
+| APP_ENV | Application environment | `dev` |
+| APP_PORT | HTTP port for the application | `8080` |
+| XDEBUG_MODE | PHP debugging configuration | `develop,debug` |
+| MESSENGER_TRANSPORT_DSN | Message queue configuration | `doctrine://default` |
 
 ## Development
 
