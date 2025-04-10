@@ -56,8 +56,7 @@ See the [Environment Variables](#environment-variables) section for more details
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/lfrmonteiro99/FizzBuzz.git
-   cd fizzbuzz
+   git clone https://github.com/lfrmonteiro99/FizzBuzz.git && cd FizzBuzz
    ```
 
 2. Run the setup script:
