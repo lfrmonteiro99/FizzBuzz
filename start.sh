@@ -133,9 +133,16 @@ echo "Setting file permissions..."
 mkdir -p app/var/{cache,log}
 chmod -R 777 app/var/
 
-# Start Docker containers
-echo "Starting Docker containers with docker-compose..."
-docker-compose up -d
+# Clean and build containers without cache
+echo "Stopping any running containers..."
+docker-compose down
+
+echo "Building Docker containers without cache..."
+docker-compose build --no-cache
+
+# Start Docker containers with force-recreate to ensure fresh start
+echo "Starting Docker containers with fresh instances..."
+docker-compose up -d --force-recreate
 
 # Wait for database to be ready
 echo "Waiting for database to be ready..."
