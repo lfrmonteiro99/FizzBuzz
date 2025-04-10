@@ -25,12 +25,16 @@ RUN pecl install -o -f redis \
     && rm -rf /tmp/pear \
     && docker-php-ext-enable redis
 
+# Install Xdebug
+RUN pecl install xdebug \
+    && docker-php-ext-enable xdebug
+
 # Set up correct permissions and directories
 RUN mkdir -p /var/www/app/var/cache /var/www/app/var/log \
     && chown -R www-data:www-data /var/www/app
 
-# Configure memory limit for PHP CLI (for Composer)
-RUN echo "memory_limit=-1" > /usr/local/etc/php/conf.d/memory-limit.ini
+# Create log directory for PHP
+RUN mkdir -p /var/log/php && chown -R www-data:www-data /var/log/php
 
 # Get latest Composer with environment configs
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -38,23 +42,11 @@ ENV COMPOSER_ALLOW_SUPERUSER=1
 ENV COMPOSER_MEMORY_LIMIT=-1
 ENV COMPOSER_HOME=/tmp/composer
 
+# Copy php.ini
+COPY docker/php/php.ini /usr/local/etc/php/php.ini
+
 # Set working directory
 WORKDIR /var/www/app
-
-# Configure PHP-FPM
-RUN echo "pm.max_children = 50" >> /usr/local/etc/php-fpm.d/www.conf \
-    && echo "pm.start_servers = 5" >> /usr/local/etc/php-fpm.d/www.conf \
-    && echo "pm.min_spare_servers = 5" >> /usr/local/etc/php-fpm.d/www.conf \
-    && echo "pm.max_spare_servers = 35" >> /usr/local/etc/php-fpm.d/www.conf \
-    && echo "pm.max_requests = 500" >> /usr/local/etc/php-fpm.d/www.conf \
-    && echo "request_terminate_timeout = 300" >> /usr/local/etc/php-fpm.d/www.conf
-
-# Add custom PHP configuration
-RUN echo "memory_limit = 256M" > /usr/local/etc/php/conf.d/custom.ini \
-    && echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/custom.ini \
-    && echo "max_input_time = 300" >> /usr/local/etc/php/conf.d/custom.ini \
-    && echo "upload_max_filesize = 20M" >> /usr/local/etc/php/conf.d/custom.ini \
-    && echo "post_max_size = 20M" >> /usr/local/etc/php/conf.d/custom.ini
 
 # Create entrypoint script
 RUN echo '#!/bin/bash\n\
